@@ -113,7 +113,6 @@ class CustomSyncAndAsyncResolveWithThenChainingPromise{
         this.resolveChain.push(fn);
         if(this.resolvedData)
         {
-            console.log(this.resolvedData,this.resolveChain)
             this.resolvedData =  this.resolveChain.reduce((acc,fn)=> fn(acc) ,this.resolvedData );
             this.resolveChain.shift();
             }
@@ -155,7 +154,6 @@ class CustomPromiseWithResolveAndReject{
         const reject = (value) => {
             this.isRejected=true;
             this.rejectedData=value;
-            console.log(this.rejectedData);
             if(this.rejectChain.length > 0)
             {
                 this.rejectChain.reduce((acc,fn)=> fn(acc) ,this.rejectedData );
@@ -168,7 +166,6 @@ class CustomPromiseWithResolveAndReject{
         this.resolveChain.push(fn);
         if(this.resolvedData)
         {
-            console.log(this.resolvedData,this.resolveChain)
             this.resolvedData =  this.resolveChain.reduce((acc,fn)=> fn(acc) ,this.resolvedData );
             this.resolveChain.shift();
             }
@@ -180,7 +177,7 @@ class CustomPromiseWithResolveAndReject{
     {
         this.rejectChain.push(fn);
         if(this.rejectedData)
-        { console.log(this.rejectChain);
+        { 
             this.rejectedData =  this.rejectChain.reduce((acc,fn)=> fn(acc) ,this.rejectedData );
             this.rejectChain.shift();
             }
@@ -190,14 +187,14 @@ class CustomPromiseWithResolveAndReject{
   
 }
 
-const custompromiseWithResolveAndReject = new CustomPromiseWithResolveAndReject(
-    (resolve,reject)=> setTimeout(()=>reject(5),1000)
-    // (resolve,reject) => reject("Rejected")
-    )
-custompromiseWithResolveAndReject
-.then((val)=>console.log(val))
-.catch((val)=> `Promise ${val}`)
-.catch((val)=>console.log(val));
+// const custompromiseWithResolveAndReject = new CustomPromiseWithResolveAndReject(
+//     (resolve,reject)=> setTimeout(()=>reject(5),1000)
+//     // (resolve,reject) => reject("Rejected")
+//     )
+// custompromiseWithResolveAndReject
+// .then((val)=>console.log(val))
+// .catch((val)=> `Promise ${val}`)
+// .catch((val)=>console.log(val));
 
 //16. Let's add finally support
 
@@ -210,6 +207,141 @@ class CustomPromiseComplete{
     isRejected=false;
     rejectedData;
     rejectChain=[];
+
+    static resolve(value)
+    {
+        return new CustomPromiseComplete((resolve,reject)=>resolve(value))
+    }
+
+    static reject(value)
+    {
+        return new CustomPromiseComplete((resolve,reject)=>reject(value))
+    }
+
+    static all(promises)
+    {
+        if(Array.isArray(promises))
+        {
+            let count=promises.length;
+            const results=[];
+
+            return new CustomPromiseComplete((resolve,reject)=>{
+                promises.forEach((promise,index)=>{
+                    promise
+                    .then((data)=>{
+                        results[index]=data;
+                        count--;
+
+                        if(count==0)
+                        {
+                            resolve(results);
+                        }
+
+                    })
+                    .catch((error)=>reject(error));
+                })
+            })
+        }
+        else{
+            return new CustomPromiseComplete.reject("Pass an iterable");
+        }
+    }
+
+    static any(promises)
+    {
+        if(Array.isArray(promises))
+        {
+        let count=promises.length;
+        let errors=[];
+           return new CustomPromiseComplete((resolve,reject)=>{
+                promises.forEach((promise,index)=>{
+                    promise.then((data)=>{
+                        // console.log(count,data)
+                        resolve(data);
+                    }).catch((error)=>{
+                        count--;
+                        console.log(index);
+                        errors[index]=error;
+                        if(count===0)
+                        {
+                            console.log(error);
+                            reject(errors);
+                        }
+                    })
+                })
+           })
+        }
+        else{
+            return new CustomPromiseComplete.reject("Pass an iterable");
+        }
+    }
+
+    static race(promises)
+    {
+        if(Array.isArray(promises))
+        {
+            //It should call resolve/reject only once.
+            let  isCalled=false;
+            return new CustomPromiseComplete((resolve,reject)=>{
+                promises.forEach((promise)=>{
+                    promise.then((data)=>{
+                        if(!isCalled)
+                        {
+                            isCalled=true;
+                            resolve(data)
+                        }
+                    })
+                    .catch((error)=>{
+                        if(!isCalled)
+                        {
+                            isCalled=true;
+                            reject(error)
+                        }
+                       })
+                })
+            })
+        }
+        else{
+            return new CustomPromiseComplete.reject("Pass an iterable");
+        }
+    }
+
+    static allSettled(promises)
+    {
+        if(Array.isArray(promises))
+        {
+            let count=promises.length;
+            const results=[];
+
+            return new CustomPromiseComplete((resolve,reject)=>{
+                promises.forEach((promise,index)=>{
+                    promise
+                    .then((data)=>{
+                        results[index]={data,status:"resolved"};
+                        count--;
+
+                        if(count==0)
+                        {
+                            resolve(results);
+                        }
+
+                    })
+                    .catch((error)=>{
+                        results[index]={data:error,status:"rejected"};
+                        count--;
+
+                        if(count==0)
+                        {
+                            resolve(results);
+                        }
+                    });
+                })
+            })
+        }
+        else{
+            return new CustomPromiseComplete.reject("Pass an iterable");
+        }
+    }
 
     constructor(executorFn)
     {
@@ -225,7 +357,6 @@ class CustomPromiseComplete{
         const reject = (value) => {
             this.isRejected=true;
             this.rejectedData=value;
-            console.log(this.rejectedData);
             if(this.rejectChain.length > 0)
             {
                 this.rejectChain.reduce((acc,fn)=> fn(acc) ,this.rejectedData );
@@ -238,7 +369,6 @@ class CustomPromiseComplete{
         this.resolveChain.push(fn);
         if(this.resolvedData)
         {
-            console.log(this.resolvedData,this.resolveChain)
             this.resolvedData =  this.resolveChain.reduce((acc,fn)=> fn(acc) ,this.resolvedData );
             this.resolveChain.shift();
         }
@@ -250,7 +380,7 @@ class CustomPromiseComplete{
     {
         this.rejectChain.push(fn);
         if(this.rejectedData)
-        { console.log(this.rejectChain);
+        { 
             this.rejectedData =  this.rejectChain.reduce((acc,fn)=> fn(acc) ,this.rejectedData );
             this.rejectChain.shift();
             }
@@ -278,11 +408,14 @@ class CustomPromiseComplete{
 }
 
 const custompromiseComplete = new CustomPromiseComplete(
-    (resolve,reject)=> setTimeout(()=>resolve(5),1000)
+    (resolve,reject)=> setTimeout(()=>resolve(4),1000)
     // (resolve,reject) => reject("Rejected")
     )
     custompromiseComplete
 .then((val)=>val*val)
-.catch((val)=> `Promise ${val}`)
-.finally((val)=>console.log(val));
 
+
+CustomPromiseComplete
+.allSettled([custompromiseComplete,CustomPromiseComplete.resolve(5),CustomPromiseComplete.reject(2),])
+.then((val)=>console.log(val))
+.catch((error)=>console.log(error))
